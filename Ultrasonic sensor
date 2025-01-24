@@ -1,0 +1,78 @@
+#include <ESP8266WiFi.h>
+#include "ThingSpeak.h"
+const char* ssid = "lakshmi";   // your network SSID (name) 
+const char* password = "fourfour";   // your network password
+
+
+WiFiClient  client;
+
+unsigned long myChannelNumber = 2819237;
+const char * myWriteAPIKey = "FM2V4BT77SKIOB4O";
+
+
+const int trigPin = 2;
+const int echoPin = 16;
+
+//define sound velocity in cm/uS
+#define SOUND_VELOCITY 0.034
+#define CM_TO_INCH 0.393701
+
+long duration;
+float distanceCm;
+float distanceInch;
+unsigned long lastTime = 0;
+unsigned long timerDelay = 30000;
+void setup() {
+  Serial.begin(115200); // Starts the serial communication
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echoPin, INPUT); // Sets the echoPin as an Input
+  WiFi.mode(WIFI_STA);   
+  ThingSpeak.begin(client);
+}
+
+void loop() {
+    if ((millis() - lastTime) > timerDelay) {
+    
+    // Connect or reconnect to WiFi
+    if(WiFi.status() != WL_CONNECTED){
+      Serial.print("Attempting to connect");
+      while(WiFi.status() != WL_CONNECTED){
+        WiFi.begin(ssid, password); 
+        delay(5000);     
+      } 
+      Serial.println("\nConnected.");
+    }
+  // Clears the trigPin
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(echoPin, HIGH);
+  
+  // Calculate the distance
+  distanceCm = duration * SOUND_VELOCITY/2;
+  
+  // Convert to inches
+  distanceInch = distanceCm * CM_TO_INCH;
+  
+  // Prints the distance on the Serial Monitor
+  Serial.print("Distance (cm): ");
+  Serial.println(distanceCm);
+  Serial.print("Distance (inch): ");
+  Serial.println(distanceInch);
+  int x = ThingSpeak.writeField(myChannelNumber, 1, distanceCm, myWriteAPIKey);
+      if(x == 200){
+      Serial.println("Channel update successful.");
+    }
+    else{
+      Serial.println("Problem updating channel. HTTP error code " + String(x));
+    }
+    lastTime = millis();
+  }
+  
+  delay(1000);
+}
